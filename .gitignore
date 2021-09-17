@@ -1,3 +1,5 @@
+*.json
+!*.example.json
 *.db
 
 # Byte-compiled / optimized / DLL files
