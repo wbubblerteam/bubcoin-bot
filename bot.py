@@ -10,7 +10,7 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
 
-__version__ = '0.1.0'
+__version__ = '0.1.0a'
 
 CONFIG_PATH = 'config.json'
 DB_PATH = 'bubcoinbot.db'
@@ -45,8 +45,8 @@ class BubcoinBot(commands.Bot):
         print(f'Started as {self.user.name}.')
 
     async def close(self):
-        self.loop.run_until_complete(self.session.close())
-        self.loop.run_until_complete(super().close())
+        await super().close()
+        await self.session.close()
 
 
 class BubcoinBotCommands(commands.Cog):
