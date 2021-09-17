@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import asyncio
 import json
 
 import discord
@@ -33,16 +34,19 @@ class User(Base):
 # bot stuff
 class BubcoinBot(commands.Bot):
     def __init__(self, *args, **kwargs):
-        self.add_cog(BubcoinBotCommands(self))
-
         self.engine = create_async_engine(f'sqlite+aiosqlite:///{DB_PATH}', echo=SQL_ECHO, future=True)
         self.session = AsyncSession(self.engine)
 
         super().__init__(*args, **kwargs)
 
-    def close(self):
-        self.session.close()
-        super().close()
+        self.add_cog(BubcoinBotCommands(self))
+
+    async def on_ready(self):
+        print(f'Started as {self.user.name}.')
+
+    async def close(self):
+        self.loop.run_until_complete(self.session.close())
+        self.loop.run_until_complete(super().close())
 
 
 class BubcoinBotCommands(commands.Cog):
@@ -50,15 +54,17 @@ class BubcoinBotCommands(commands.Cog):
         self.bot = bot
 
     @commands.command()
-    def myid(self, ctx: commands.Context):
+    async def myid(self, ctx: commands.Context):
         return await ctx.send(ctx.author.id)
 
 
 def main():
+    print(f'Loading config from {CONFIG_PATH}.')
     with open(CONFIG_PATH) as config_file:
         config = json.load(config_file)
 
     bubcoin_bot = BubcoinBot(command_prefix=DEFAULT_PREFIX)
+    print('Starting...')
     bubcoin_bot.run(config['token'])
 
 
