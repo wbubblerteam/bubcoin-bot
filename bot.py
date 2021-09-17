@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-import asyncio
 import json
+from typing import Optional
 
 import discord
 from discord.ext import commands
@@ -14,7 +14,7 @@ __version__ = '0.1.0'
 
 CONFIG_PATH = 'config.json'
 DB_PATH = 'bubcoinbot.db'
-DEFAULT_PREFIX = 'B$'
+DEFAULT_PREFIX = ('B$', 'b$', '$')
 SQL_ECHO = True
 
 
@@ -53,9 +53,12 @@ class BubcoinBotCommands(commands.Cog):
     def __init__(self, bot: BubcoinBot):
         self.bot = bot
 
-    @commands.command()
-    async def myid(self, ctx: commands.Context):
-        return await ctx.send(ctx.author.id)
+    @commands.command(aliases=['id'])
+    async def userid(self, ctx: commands.Context, user: Optional[discord.User]):
+        if user is None:
+            user = ctx.author
+
+        return await ctx.send(user.id)
 
 
 def main():
