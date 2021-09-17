@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 
+"""
+Copyright (c) 2021 JMcB
+Not for use with any cryptocurrency or blockchain that is any of the following:
+legitimate, commercial, high proof-of-work
+"""
+
+
 import json
 from typing import Optional
 
