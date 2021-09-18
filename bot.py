@@ -55,6 +55,15 @@ class User(Base):
 
 
 # bot stuff
+class CustomHelpCommand(commands.DefaultHelpCommand):
+    def __init__(self, **kwargs):
+        kwargs.setdefault('no_category', 'Help')
+        super().__init__(**kwargs)
+
+    def get_ending_note(self):
+        return super().get_ending_note() + f'\n\nTo get started with Bubcoin Bot, try {self.context.prefix}verify.'
+
+
 class BubcoinBot(commands.Bot):
     """Bot subclass to open and close the sqlalchemy orm and the aiohttp sessions, and load the main cog."""
     def __init__(self, *args, **kwargs):
@@ -62,7 +71,7 @@ class BubcoinBot(commands.Bot):
         self.sqla_engine = create_async_engine(f'sqlite+aiosqlite:///{DB_PATH}', echo=SQL_ECHO, future=True)
         self.sqla_session = AsyncSession(self.sqla_engine)
 
-        super().__init__(*args, **kwargs)
+        super().__init__(help_command=CustomHelpCommand(), *args, **kwargs)
 
         self.add_cog(BubcoinBotCommands(self))
 
@@ -137,16 +146,18 @@ class BubcoinBotCommands(commands.Cog):
         """Add or change your verified Bubcoin wallet address.
 
         Args:
-            address -- the Bubcoin wallet address, like TODO: EXAMPLE ADDRESS HERE
+            address -- the Bubcoin wallet address, like bcrt1qdm8hufy56erp5mf5epqevw5u4mywn9j0tpm3ke
             signature -- your discord user id cryptographically signed with your Bubcoin wallet,
-                         like TODO: EXAMPLE SIG HERE
+                         like IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EOrjSgVTY=
 
         After you've added verified an address, you can deposit Bubcoin by sending it from your verified address
         to the bot's public wallet, and withdraw Bubcoin to your verified address.
         Signing your discord user id with your wallet's private key proves that you own it.
         To get your user id, use this bot's `discord_id` command.
         To sign it, use Bubcoin core:
-        bitcoin-cli signmessage "TODO: EXAMPLE ADDRESS HERE" "329885271787307008"
+        `bubcoin-cli signmessage <address> <message>`
+        like
+        `bubcoin-cli signmessage "bcrt1qdm8hufy56erp5mf5epqevw5u4mywn9j0tpm3ke" "329885271787307008"`
         """
         address_validation = await self.rpc_call('validateaddress', address)
         valid_address = address_validation['isvalid']
