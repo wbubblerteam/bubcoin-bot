@@ -20,6 +20,8 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
 __version__ = '0.1.0a'
 
+# todo: use replies instead of sends?
+
 CONFIG_PATH = 'config.json'
 DB_PATH = 'bubcoinbot.db'
 SQL_ECHO = True
@@ -38,12 +40,12 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = 'users'
 
-    discord_id = Column(Integer, primary_key=True)
+    discord_id = Column(Integer, primary_key=True, nullable=False)
     bubcoin_address = Column(Text)
     # The discord id signed with the private key of the address
     bubcoin_signature = Column(Text)
     # Coin units in virtual wallet
-    prettytinybubs = Column(Integer)
+    prettytinybubs = Column(Integer, default=0)
 
 
 # bot stuff
@@ -93,7 +95,7 @@ class BubcoinBotCommands(commands.Cog):
 
         return await ctx.send(user.id)
 
-    async def rpc_call(self, method: str, params: list[str]) -> dict:
+    async def rpc_call(self, method: str, *params: str) -> dict:
         headers = {'content-type': 'text/plain'}
         json_data = {
             'jsonrpc': '1.0',
@@ -102,14 +104,32 @@ class BubcoinBotCommands(commands.Cog):
             'params': params,
         }
 
-        with self.bot.aioh_session.get(
+        async with self.bot.aioh_session.get(
             self.rpc_url, json=json_data, headers=headers, auth=aiohttp.BasicAuth(RPC_USERNAME)
         ) as response:
-            return response.json()
+            return await response.json()
 
     @commands.command(aliases=['verify'])
-    async def verify_address(self, ctx: commands.Context, signature):
-        pass
+    async def verify_address(self, ctx: commands.Context, address: str, signature: str):
+        address_validation = await self.rpc_call('validateaddress', address)
+        valid_address = address_validation['isvalid']
+        if not valid_address:
+            return await ctx.send(f'Invalid address: {address}')
+
+        verified_message = await self.rpc_call('verifymessage', address, signature, ctx.author.id)
+        if not verified_message:
+            return await ctx.send('Invalid cryptographic signature.')
+
+        user: User = await self.bot.sqla_session.get(User, ctx.author.id)
+        prev_address = user.bubcoin_address
+        async with self.bot.sqla_session.begin():
+            user.bubcoin_address = address
+            user.bubcoin_signature = signature
+
+        message = f'Your new verified Bubcoin address is {address}.'
+        if prev_address is not None:
+            message = f'Your previous address was {prev_address}.\n' + message
+        return await ctx.send(message)
 
 
 def main():
