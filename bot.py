@@ -10,6 +10,7 @@ legitimate, commercial, high proof-of-work
 import json
 from typing import Optional
 
+import aiohttp
 import discord
 from discord.ext import commands
 from sqlalchemy import Column, Integer, Text
@@ -42,8 +43,9 @@ class User(Base):
 # bot stuff
 class BubcoinBot(commands.Bot):
     def __init__(self, *args, **kwargs):
-        self.engine = create_async_engine(f'sqlite+aiosqlite:///{DB_PATH}', echo=SQL_ECHO, future=True)
-        self.session = AsyncSession(self.engine)
+        self.aioh_session = aiohttp.ClientSession()
+        self.sqla_engine = create_async_engine(f'sqlite+aiosqlite:///{DB_PATH}', echo=SQL_ECHO, future=True)
+        self.sqla_session = AsyncSession(self.sqla_engine)
 
         super().__init__(*args, **kwargs)
 
@@ -54,19 +56,17 @@ class BubcoinBot(commands.Bot):
 
     async def close(self):
         await super().close()
-        await self.session.close()
+        await self.sqla_session.close()
+        await self.aioh_session.close()
 
 
 class BubcoinBotCommands(commands.Cog):
     def __init__(self, bot: BubcoinBot):
         self.bot = bot
 
-    @commands.command(aliases=['id'])
-    async def discord_user_id(self, ctx: commands.Context, user: Optional[discord.User]):
-        if user is None:
-            user = ctx.author
-
-        return await ctx.send(user.id)
+    @commands.command(aliases=['github', 'git', 'source'])
+    async def github_url(self, ctx: commands.Context):
+        return await ctx.send(GITHUB_URL)
 
     @commands.command()
     async def invite(self, ctx: commands.Context):
@@ -79,9 +79,12 @@ class BubcoinBotCommands(commands.Cog):
         invite_url = discord.utils.oauth_url(client_id, permissions, ctx.guild)
         await ctx.send(invite_url)
 
-    @commands.command(aliases=['github', 'git', 'source'])
-    async def github_url(self, ctx: commands.Context):
-        return await ctx.send(GITHUB_URL)
+    @commands.command(aliases=['id', 'user_id'])
+    async def discord_user_id(self, ctx: commands.Context, user: Optional[discord.User]):
+        if user is None:
+            user = ctx.author
+
+        return await ctx.send(user.id)
 
 
 def main():
