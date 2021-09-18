@@ -23,6 +23,7 @@ CONFIG_PATH = 'config.json'
 DB_PATH = 'bubcoinbot.db'
 DEFAULT_PREFIX = ('B$', 'b$', '$')
 SQL_ECHO = True
+GITHUB_URL = 'https://github.com/wbubblerteam/bubcoin-bot'
 
 
 # orm mappings
@@ -61,11 +62,26 @@ class BubcoinBotCommands(commands.Cog):
         self.bot = bot
 
     @commands.command(aliases=['id'])
-    async def userid(self, ctx: commands.Context, user: Optional[discord.User]):
+    async def discord_user_id(self, ctx: commands.Context, user: Optional[discord.User]):
         if user is None:
             user = ctx.author
 
         return await ctx.send(user.id)
+
+    @commands.command()
+    async def invite(self, ctx: commands.Context):
+        app_info = await self.bot.application_info()
+        client_id = app_info.id
+
+        permissions = discord.Permissions()
+        permissions.update(send_message=True, read_message=True)
+
+        invite_url = discord.utils.oauth_url(client_id, permissions, ctx.guild)
+        await ctx.send(invite_url)
+
+    @commands.command(aliases=['github', 'git', 'source'])
+    async def github_url(self, ctx: commands.Context):
+        return await ctx.send(GITHUB_URL)
 
 
 def main():
