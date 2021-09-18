@@ -27,6 +27,10 @@ CONFIG_PATH = 'config.json'
 DB_PATH = 'bubcoinbot.db'
 SQL_ECHO = True
 GITHUB_URL = 'https://github.com/wbubblerteam/bubcoin-bot'
+BOT_PERMISSIONS = {
+    'read_messages': True,
+    'send_message': True,
+}
 DEFAULT_PREFIX = ('B$', 'b$', '$')
 COIN = 100000000
 RPC_PORT = 8332
@@ -54,7 +58,7 @@ class User(Base):
 class BubcoinBot(commands.Bot):
     """Bot subclass to open and close the sqlalchemy orm and the aiohttp sessions, and load the main cog."""
     def __init__(self, *args, **kwargs):
-        self.aioh_session = aiohttp.ClientSession()
+        self.aioh_session = None
         self.sqla_engine = create_async_engine(f'sqlite+aiosqlite:///{DB_PATH}', echo=SQL_ECHO, future=True)
         self.sqla_session = AsyncSession(self.sqla_engine)
 
@@ -63,6 +67,7 @@ class BubcoinBot(commands.Bot):
         self.add_cog(BubcoinBotCommands(self))
 
     async def on_ready(self):
+        self.aioh_session = aiohttp.ClientSession()
         print(f'Started as {self.user.name}.')
 
     async def close(self):
@@ -95,7 +100,7 @@ class BubcoinBotCommands(commands.Cog):
         client_id = app_info.id
 
         permissions = discord.Permissions()
-        permissions.update(send_message=True, read_message=True)
+        permissions.update(**BOT_PERMISSIONS)
 
         invite_url = discord.utils.oauth_url(client_id, permissions, ctx.guild)
         await ctx.send(invite_url)
