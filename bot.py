@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-"""
+"""Exchange for Bubcoin over Discord.
+
 Copyright (c) 2021 JMcB
 Not for use with any cryptocurrency or blockchain that is any of the following:
 legitimate, commercial, high proof-of-work
@@ -38,6 +39,7 @@ Base = declarative_base()
 
 
 class User(Base):
+    """The SQL table for users, with discord id, address, and coins."""
     __tablename__ = 'users'
 
     discord_id = Column(Integer, primary_key=True, nullable=False)
@@ -50,6 +52,7 @@ class User(Base):
 
 # bot stuff
 class BubcoinBot(commands.Bot):
+    """Bot subclass to open and close the sqlalchemy orm and the aiohttp sessions, and load the main cog."""
     def __init__(self, *args, **kwargs):
         self.aioh_session = aiohttp.ClientSession()
         self.sqla_engine = create_async_engine(f'sqlite+aiosqlite:///{DB_PATH}', echo=SQL_ECHO, future=True)
@@ -69,16 +72,25 @@ class BubcoinBot(commands.Bot):
 
 
 class BubcoinBotCommands(commands.Cog):
+    """Cog containing all the bot's commands, loaded by default."""
     def __init__(self, bot: BubcoinBot):
         self.bot = bot
         self.rpc_url = f'http://127.0.0.1:{RPC_PORT}/'
 
     @commands.command(aliases=['github', 'git', 'source'])
     async def github_url(self, ctx: commands.Context):
+        """Send the url to the code repo for the bot.
+
+        Gets it from the GITHUB_URL constant.
+        """
         return await ctx.send(GITHUB_URL)
 
-    @commands.command()
-    async def invite(self, ctx: commands.Context):
+    @commands.command(aliases=['invite'])
+    async def invite_bot(self, ctx: commands.Context):
+        """Send a discord bot invite for this bot.
+
+        Uses the bot's current client id and some required permissions.
+        """
         app_info = await self.bot.application_info()
         client_id = app_info.id
 
@@ -88,14 +100,20 @@ class BubcoinBotCommands(commands.Cog):
         invite_url = discord.utils.oauth_url(client_id, permissions, ctx.guild)
         await ctx.send(invite_url)
 
-    @commands.command(aliases=['id', 'user_id'])
-    async def discord_user_id(self, ctx: commands.Context, user: Optional[discord.User]):
+    @commands.command(aliases=['id', 'user_id', 'discord_user_id'])
+    async def discord_id(self, ctx: commands.Context, user: Optional[discord.User]):
+        """Get your discord user id.
+
+        Used for signing and verifying your bubcoin address.
+        You can also enable discord's developer options and right click yourself to get your id.
+        """
         if user is None:
             user = ctx.author
 
         return await ctx.send(user.id)
 
     async def rpc_call(self, method: str, *params: str) -> dict:
+        """Wrapper for calls to the Bubcoin Core RPC API."""
         headers = {'content-type': 'text/plain'}
         json_data = {
             'jsonrpc': '1.0',
@@ -111,6 +129,20 @@ class BubcoinBotCommands(commands.Cog):
 
     @commands.command(aliases=['verify'])
     async def verify_address(self, ctx: commands.Context, address: str, signature: str):
+        """Add or change your verified Bubcoin wallet address.
+
+        Args:
+            address -- the Bubcoin wallet address, like TODO: EXAMPLE ADDRESS HERE
+            signature -- your discord user id cryptographically signed with your Bubcoin wallet,
+                         like TODO: EXAMPLE SIG HERE
+
+        After you've added verified an address, you can deposit Bubcoin by sending it from your verified address
+        to the bot's public wallet, and withdraw Bubcoin to your verified address.
+        Signing your discord user id with your wallet's private key proves that you own it.
+        To get your user id, use this bot's `discord_id` command.
+        To sign it, use Bubcoin core:
+        bitcoin-cli signmessage "TODO: EXAMPLE ADDRESS HERE" "329885271787307008"
+        """
         address_validation = await self.rpc_call('validateaddress', address)
         valid_address = address_validation['isvalid']
         if not valid_address:
@@ -133,6 +165,7 @@ class BubcoinBotCommands(commands.Cog):
 
 
 def main():
+    """Main function to load config and run the bot."""
     print(f'Loading config from {CONFIG_PATH}.')
     with open(CONFIG_PATH) as config_file:
         config = json.load(config_file)
