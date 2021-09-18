@@ -22,9 +22,13 @@ __version__ = '0.1.0a'
 
 CONFIG_PATH = 'config.json'
 DB_PATH = 'bubcoinbot.db'
-DEFAULT_PREFIX = ('B$', 'b$', '$')
 SQL_ECHO = True
 GITHUB_URL = 'https://github.com/wbubblerteam/bubcoin-bot'
+DEFAULT_PREFIX = ('B$', 'b$', '$')
+COIN = 100000000
+RPC_PORT = 8332
+RPC_USERNAME = 'user'
+RPC_ID = 'bubcoinbot'
 
 
 # orm mappings
@@ -38,6 +42,8 @@ class User(Base):
     bubcoin_address = Column(Text)
     # The discord id signed with the private key of the address
     bubcoin_signature = Column(Text)
+    # Coin units in virtual wallet
+    prettytinybubs = Column(Integer)
 
 
 # bot stuff
@@ -63,6 +69,7 @@ class BubcoinBot(commands.Bot):
 class BubcoinBotCommands(commands.Cog):
     def __init__(self, bot: BubcoinBot):
         self.bot = bot
+        self.rpc_url = f'http://127.0.0.1:{RPC_PORT}/'
 
     @commands.command(aliases=['github', 'git', 'source'])
     async def github_url(self, ctx: commands.Context):
@@ -85,6 +92,24 @@ class BubcoinBotCommands(commands.Cog):
             user = ctx.author
 
         return await ctx.send(user.id)
+
+    async def rpc_call(self, method: str, params: list[str]) -> dict:
+        headers = {'content-type': 'text/plain'}
+        json_data = {
+            'jsonrpc': '1.0',
+            'id': RPC_ID,
+            'method': method,
+            'params': params,
+        }
+
+        with self.bot.aioh_session.get(
+            self.rpc_url, json=json_data, headers=headers, auth=aiohttp.BasicAuth(RPC_USERNAME)
+        ) as response:
+            return response.json()
+
+    @commands.command(aliases=['verify'])
+    async def verify_address(self, ctx: commands.Context, signature):
+        pass
 
 
 def main():
