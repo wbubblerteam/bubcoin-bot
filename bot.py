@@ -208,13 +208,13 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
             message = f'Your previous address was {prev_address}.\n' + message
         return await ctx.send(message)
 
-    @commands.command(aliases=['send', 'send_bubcoins', 'transfer'])
+    @commands.command(aliases=['send_bubcoins', 'send', 'transfer'])
     async def send_bubcoin(self, ctx: commands.Context, user: discord.User, amount: Decimal):
         """Send Bubcoin to another user's account.
 
         Args:
             user -- the Bubcoin Bot discord user to send Bubcoin to
-            amount -- the number of bubcoins, as a decimal number
+            amount -- the number of Bubcoin, as a decimal number
         Example:
         b$send @Wbubbler 10.0
 
@@ -253,7 +253,7 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
             sender.prettytinybubs -= amount_prettytinybubs
             recipient.prettytinybubs += amount_prettytinybubs
         return await ctx.send(
-            f'Transaction successful! \nYour new balance is: \n{sender.prettytinybubs}'
+            f'Transaction successful! \nYour new balance is: ₿\n{sender.prettytinybubs}'
         )
 
 
