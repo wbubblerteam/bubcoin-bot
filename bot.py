@@ -170,7 +170,7 @@ class BubcoinBotCommands(commands.Cog):
         Args:
             address -- the Bubcoin wallet address
             signature -- your discord user id cryptographically signed with your Bubcoin wallet
-        For example:
+        Example:
         b$verify bcrt1qdm8hufy56erp5mf5epqevw5u4mywn9j0tpm3ke \
 IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EOrjSgVTY=
 
@@ -208,8 +208,20 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
             message = f'Your previous address was {prev_address}.\n' + message
         return await ctx.send(message)
 
-    @commands.command(aliases=['send', 'send_bubcoins'])
+    @commands.command(aliases=['send', 'send_bubcoins', 'transfer'])
     async def send_bubcoin(self, ctx: commands.Context, user: discord.User, amount: Decimal):
+        """Send Bubcoin to another user's account.
+
+        Args:
+            user -- the Bubcoin Bot discord user to send Bubcoin to
+            amount -- the number of bubcoins, as a decimal number
+        Example:
+        b$send @Wbubbler 10.0
+
+        This transfers virtual Bubcoin between your Bubcoin Bot accounts.
+        To withdraw real Bubcoin from your account, use the `withdraw` command.
+        To deposit real Bubcoin into your account, use the `deposit` command.
+        """
         amount_prettytinybubs = int(amount * COIN)
         # sanity check
         if amount_prettytinybubs > MAX_MONEY:
