@@ -9,6 +9,7 @@ legitimate, commercial, high proof-of-work
 
 
 import json
+import re
 from decimal import Decimal
 from typing import Optional
 
@@ -23,7 +24,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 __version__ = '0.1.0a'
 
 # todo: use replies instead of sends?
-# todo: handle wallet passphrases
+# todo: handle wallet passphrases in rpc calls
 
 CONFIG_PATH = 'config.json'
 DB_PATH = 'bubcoinbot.db'
@@ -39,6 +40,8 @@ MAX_MONEY = 1000 * COIN
 RPC_PORT = 8332
 RPC_USERNAME = 'user'
 RPC_ID = 'bubcoinbot'
+ADDRESS_REGEX = re.compile(r'^[a-zA-Z0-9]{26,35}$')
+SIGNATURE_REGEX = re.compile(r'^[a-zA-Z0-9/=]+$')
 
 
 def coin(prettytinybubs: int) -> Decimal:
@@ -92,6 +95,10 @@ class BubcoinBot(commands.Bot):
     async def on_command_error(self, ctx: commands.Context, exception: Exception):
         if isinstance(exception, commands.MissingRequiredArgument):
             help_message = f'You used the command wrong (missing argument), try: \n{ctx.prefix}help {ctx.invoked_with}'
+            await ctx.send(help_message)
+        if isinstance(exception, commands.BadArgument):
+            help_message = 'You used the command wrong (incorrect argument format), try:' \
+                           f' \n{ctx.prefix}help {ctx.invoked_with}'
             await ctx.send(help_message)
         elif isinstance(exception.__cause__, aiohttp.ClientConnectorError):
             await ctx.send('Bubcoin Core RPC server not running, shutting down.')
@@ -185,7 +192,9 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
         For example:
         `bubcoin-cli signmessage "bcrt1qdm8hufy56erp5mf5epqevw5u4mywn9j0tpm3ke" "329885271787307008"`
         """
-        # todo: regex sanity checks for args
+        # sanity check to prevent unnecessary rpc calls
+        if not (re.match(ADDRESS_REGEX, address) and re.match(SIGNATURE_REGEX, signature)):
+            raise commands.BadArgument('Invalid address or signature.')
 
         address_validation = await self.rpc_call('validateaddress', address)
         valid_address = address_validation['isvalid']
