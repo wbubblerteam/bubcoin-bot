@@ -232,6 +232,8 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
         # sanity checks
         if amount_prettytinybubs == 0:
             return f"There's no point trying to {action} 0 Bubcoin."
+        if amount_prettytinybubs < 0:
+            return f"You can't {action} negative Bubcoin."
 
         if amount_prettytinybubs > MAX_MONEY:
             return (
