@@ -211,7 +211,19 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
         return await ctx.send(message)
 
     async def amount_check(self, ctx: commands.Context, amount_prettytinybubs: int, action: str) -> str:
-        # sanity check
+        """Check if an amount of Bubcoin is valid and if the ctx.author has that amount.
+
+        Args:
+            ctx -- command context, used for getting user id, and command prefix for help strings
+            amount_prettytinybubs -- amount of Bubcoin to check
+            action -- a word like 'send' or 'withdraw', for the help strings
+        Returns an empty string if checks passed, or a string detailing what went wrong, to give to the user,
+        if a check failed.
+        """
+        # sanity checks
+        if amount_prettytinybubs == 0:
+            return f"There's no point trying to {action} 0 Bubcoin."
+
         if amount_prettytinybubs > MAX_MONEY:
             return (
                 f"You can't {action} more than the maximum possible number of Bubcoins. \n"
@@ -232,6 +244,7 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
             )
 
         # return an empty string if all checks are ok
+        return ''
 
     @commands.command(aliases=['send_bubcoins', 'send', 'transfer'])
     async def send_bubcoin(self, ctx: commands.Context, user: discord.User, amount: Decimal):
@@ -239,7 +252,7 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
 
         Args:
             user -- the Bubcoin Bot discord user to send Bubcoin to
-            amount -- the number of Bubcoin, as a decimal number
+            amount -- the number of Bubcoin to send, as a decimal number
         Example:
         b$send @Wbubbler 10.0
 
@@ -270,7 +283,12 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
     async def withdraw_bubcoin(self, ctx: commands.Context, amount: Decimal, confirm: bool = False):
         """Withdraw Bubcoin from your account.
 
-        todo: full docstring
+        Args:
+            amount -- the number of Bubcoin to withdraw, as a decimal number
+            confirm -- skip manual confirmation
+
+        Sends real Bubcoin from the bot's wallet to your verified wallet address.
+        If you leave out the `confirm` argument, you will be asked for confirmation.
         """
         if ctx.invoked_subcommand is not None:
             return
@@ -280,8 +298,15 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
         if failure:
             return await ctx.send(failure)
 
-        # checks passed, now confirmation
+        # check if user has verified address
         user = await self.sqla_session.get(User, ctx.author.id)
+        if user.bubcoin_address is None:
+            return await ctx.send(
+                'You do not have a verified Bubcoin address to withdraw to. Try:'
+                f' \n{ctx.prefix}verify'
+            )
+
+        # checks passed, now confirmation
         if not confirm:
             self.pending_withdrawals[ctx.author.id] = amount
             return await ctx.send(
