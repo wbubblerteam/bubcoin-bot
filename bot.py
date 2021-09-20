@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 __version__ = '0.1.0a'
 
 # todo: use replies instead of sends?
+# todo: handle wallet passphrases
 
 CONFIG_PATH = 'config.json'
 DB_PATH = 'bubcoinbot.db'
@@ -251,7 +252,7 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
         if failure:
             return await ctx.send(failure)
 
-        # send the money
+        # check passed, send the money
         sender = await self.sqla_session.get(User, ctx.author.id)
         recipient = await self.sqla_session.get(User, user.id)
         async with self.sqla_session.begin():
@@ -262,7 +263,7 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
             sender.prettytinybubs -= amount_prettytinybubs
             recipient.prettytinybubs += amount_prettytinybubs
         return await ctx.send(
-            f'Transaction successful! \nYour new balance is: ₿\n{sender.prettytinybubs}'
+            f'Transaction successful! \nYour new balance is: \n₿{coin(sender.prettytinybubs)}'
         )
 
     @commands.command(aliases=['withdraw'])
@@ -272,7 +273,31 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
         todo: full docstring
         """
         amount_prettytinybubs = int(amount * COIN)
-        failure = self.amount_check(ctx, amount_prettytinybubs, 'withdraw')
+        failure = await self.amount_check(ctx, amount_prettytinybubs, 'withdraw')
+        if failure:
+            return await ctx.send(failure)
+
+        # check passed, withdraw the money
+        user = await self.sqla_session.get(User, ctx.author.id)
+        async with self.sqla_session.begin():
+            user.prettytinybubs -= amount_prettytinybubs
+
+            rpc_params = [
+                # dummy string
+                '',
+                # problematic precision?
+                {user.bubcoin_address: amount},
+                # dummy value
+                6,
+                # comment
+                f'Withdrawal by {ctx.author.name}#{ctx.author.discriminator} ({ctx.author.id}).'
+            ]
+            await self.rpc_call('sendmany', *rpc_params)
+
+        return await ctx.send(
+            'Withdrawal successful! \n'
+            f'Your new balance is: \n₿{coin(user.prettytinybubs)}'
+        )
 
 
 def main():
