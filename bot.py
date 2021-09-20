@@ -110,7 +110,7 @@ class BubcoinBotCommands(commands.Cog):
     def __init__(self, bot: BubcoinBot):
         self.bot = bot
         self.rpc_url = f'http://127.0.0.1:{RPC_PORT}/'
-        self.withdraw_confirms = {}
+        self.pending_withdrawals = {}
 
         self.sqla_session = self.bot.sqla_session
         self.aioh_session = self.bot.aioh_session
@@ -266,19 +266,32 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
             f'Transaction successful! \nYour new balance is: \n₿{coin(sender.prettytinybubs)}'
         )
 
-    @commands.command(aliases=['withdraw'])
-    async def withdraw_bubcoin(self, ctx: commands.Context, amount: Decimal):
+    @commands.group(aliases=['withdraw'])
+    async def withdraw_bubcoin(self, ctx: commands.Context, amount: Decimal, confirm: bool = False):
         """Withdraw Bubcoin from your account.
 
         todo: full docstring
         """
+        if ctx.invoked_subcommand is not None:
+            return
+
         amount_prettytinybubs = int(amount * COIN)
         failure = await self.amount_check(ctx, amount_prettytinybubs, 'withdraw')
         if failure:
             return await ctx.send(failure)
 
-        # check passed, withdraw the money
+        # checks passed, now confirmation
         user = await self.sqla_session.get(User, ctx.author.id)
+        if not confirm:
+            self.pending_withdrawals[ctx.author.id] = amount
+            return await ctx.send(
+                'Withdrawal pending confirmation.'
+                f' \nAddress: \n{user.bubcoin_address}'
+                f' \nAmount: \n₿{amount}'
+                f' \nNew balance: \n₿{coin(user.prettytinybubs - amount_prettytinybubs)}'
+            )
+
+        # withdraw the money
         async with self.sqla_session.begin():
             user.prettytinybubs -= amount_prettytinybubs
 
@@ -297,6 +310,16 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
         return await ctx.send(
             'Withdrawal successful! \n'
             f'Your new balance is: \n₿{coin(user.prettytinybubs)}'
+        )
+
+    @withdraw_bubcoin.command(name='confirm')
+    async def withdraw_bubcoin_confirm(self, ctx: commands.Context):
+        if ctx.author.id not in self.pending_withdrawals:
+            return await ctx.send('No withdrawals pending confirmation!')
+
+        return await ctx.invoke(
+            self.withdraw_bubcoin,
+            amount=self.pending_withdrawals[ctx.author.id], confirm=True
         )
 
 
