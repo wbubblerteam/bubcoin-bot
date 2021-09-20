@@ -109,6 +109,7 @@ class BubcoinBotCommands(commands.Cog):
     def __init__(self, bot: BubcoinBot):
         self.bot = bot
         self.rpc_url = f'http://127.0.0.1:{RPC_PORT}/'
+        self.withdraw_confirms = {}
 
         self.sqla_session = self.bot.sqla_session
         self.aioh_session = self.bot.aioh_session
@@ -208,6 +209,29 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
             message = f'Your previous address was {prev_address}.\n' + message
         return await ctx.send(message)
 
+    async def amount_check(self, ctx: commands.Context, amount_prettytinybubs: int, action: str) -> str:
+        # sanity check
+        if amount_prettytinybubs > MAX_MONEY:
+            return (
+                f"You can't {action} more than the maximum possible number of Bubcoins. \n"
+                f'Max Bubcoins: \n₿{coin(MAX_MONEY)}'
+            )
+
+        # check if user has an account
+        user = await self.sqla_session.get(User, ctx.author.id)
+        if user is None:
+            return f'You do not have a Bubcoin Bot account. Try: \n{ctx.prefix}verify'
+
+        # check if user has enough money
+        if amount_prettytinybubs > user.prettytinybubs:
+            return (
+                'Insufficient funds. \n'
+                f'You have: \n₿{coin(user.prettytinybubs)}\n'
+                f'You would need an additional: ₿{coin(amount_prettytinybubs - user.prettytinybubs)}\n'
+            )
+
+        # return an empty string if all checks are ok
+
     @commands.command(aliases=['send_bubcoins', 'send', 'transfer'])
     async def send_bubcoin(self, ctx: commands.Context, user: discord.User, amount: Decimal):
         """Send Bubcoin to another user's account.
@@ -223,27 +247,12 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
         To deposit real Bubcoin into your account, use the `deposit` command.
         """
         amount_prettytinybubs = int(amount * COIN)
-        # sanity check
-        if amount_prettytinybubs > MAX_MONEY:
-            return await ctx.send(
-                "You can't send more than the maximum possible number of Bubcoins. \n"
-                f'Max Bubcoins: \n₿{coin(MAX_MONEY)}'
-            )
-
-        # check if sender has an account
-        sender = await self.sqla_session.get(User, ctx.author.id)
-        if sender is None:
-            return await ctx.send(f'You do not have a Bubcoin Bot account. Try: \n{ctx.prefix}verify')
-
-        # check if sender has enough money
-        if amount_prettytinybubs > sender.prettytinybubs:
-            return await ctx.send(
-                'Insufficient funds. \n'
-                f'You have: \n₿{coin(sender.prettytinybubs)}\n'
-                f'You would need an additional: ₿{coin(amount_prettytinybubs - sender.prettytinybubs)}\n'
-            )
+        failure = await self.amount_check(ctx, amount_prettytinybubs, 'send')
+        if failure:
+            return await ctx.send(failure)
 
         # send the money
+        sender = await self.sqla_session.get(User, ctx.author.id)
         recipient = await self.sqla_session.get(User, user.id)
         async with self.sqla_session.begin():
             # make an account for recipient if needed
@@ -256,10 +265,19 @@ IIib3x/iuYuhUxAeiDO2i+F3Kz4idLVNK5OlEwp3991WNWy9mTl4RZRGOw2weA3tlsDHYag3zKt9I3EO
             f'Transaction successful! \nYour new balance is: ₿\n{sender.prettytinybubs}'
         )
 
+    @commands.command(aliases=['withdraw'])
+    async def withdraw_bubcoin(self, ctx: commands.Context, amount: Decimal):
+        """Withdraw Bubcoin from your account.
+
+        todo: full docstring
+        """
+        amount_prettytinybubs = int(amount * COIN)
+        failure = self.amount_check(ctx, amount_prettytinybubs, 'withdraw')
+
 
 def main():
     """Main function to load config and run the bot."""
-    print(f'Loading config from {CONFIG_PATH}.')
+    print(f'Loading config from {CONFIG_PATH}..')
     with open(CONFIG_PATH) as config_file:
         config = json.load(config_file)
 
